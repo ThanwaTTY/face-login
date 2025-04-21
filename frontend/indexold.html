@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Login</title>
+  <style>
+    video { border: 2px solid #ccc; border-radius: 8px; }
+    input, button { margin-top: 10px; padding: 8px; }
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+  </style>
+</head>
+<body>
+
+  <h1>ระบบลงทะเบียนและเข้าสู่ระบบด้วยใบหน้า</h1>
+
+  <video id="video" width="320" height="240" autoplay></video><br>
+  <input type="text" id="userId" placeholder="กรอก User ID"><br>
+  <button id="register">📸 ลงทะเบียนใบหน้า</button>
+  <button id="login">🔐 เข้าสู่ระบบด้วยใบหน้า</button>
+
+  <script>
+    // เปิดกล้อง
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        document.getElementById('video').srcObject = stream;
+      }).catch(err => {
+        alert('ไม่สามารถเข้าถึงกล้องได้: ' + err.message);
+      });
+
+    // ฟังก์ชันจับภาพจากกล้อง
+    function captureImage() {
+      const video = document.getElementById('video');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      return canvas.toDataURL('image/jpeg');
+    }
+
+    // ลงทะเบียนใบหน้า
+    document.getElementById('register').onclick = async () => {
+      const userId = document.getElementById('userId').value.trim();
+      if (!userId) return alert('กรุณาใส่ User ID');
+
+      const image = captureImage();
+
+      const res = await fetch('/register-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, image })
+      });
+
+      const result = await res.json();
+      alert(result.message);
+    };
+
+    // เข้าสู่ระบบด้วยใบหน้า
+    document.getElementById('login').onclick = async () => {
+      const userId = document.getElementById('userId').value.trim();
+      if (!userId) return alert('กรุณาใส่ User ID');
+
+      const image = captureImage();
+
+      const res = await fetch('/face-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, image })
+      });
+
+      const result = await res.json();
+      alert(result.message);
+    };
+  </script>
+
+</body>
+</html>

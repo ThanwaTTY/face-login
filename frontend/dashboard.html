@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    h1 {
+      color: #2e7d32;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎉 ยินดีต้อนรับ</h1>
+  <p id="username">กำลังโหลดข้อมูลผู้ใช้...</p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const user = params.get('user');
+
+    const username = document.getElementById('username');
+    if (user) {
+      username.textContent = `คุณ ${user}`;
+    } else {
+      username.textContent = 'ไม่พบข้อมูลผู้ใช้';
+    }
+  </script>
+</body>
+</html>

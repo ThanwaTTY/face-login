@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Login with Blink Detection</title>
+  <style>
+    video, canvas {
+      border: 2px solid #ccc;
+      border-radius: 8px;
+    }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 30px;
+    }
+    #status {
+      font-size: 1.2em;
+      margin: 10px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h2>เข้าสู่ระบบด้วยใบหน้า (พร้อมตรวจการกระพริบตา)</h2>
+  <video id="video" width="400" height="300" autoplay muted></video>
+  <canvas id="canvas" width="400" height="300" style="display:none;"></canvas>
+  <div id="status">กรุณากะพริบตาเพื่อเข้าสู่ระบบ...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    const videoElement = document.getElementById('video');
+    const canvasElement = document.getElementById('canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const statusDiv = document.getElementById('status');
+    let blinkDetected = false;
+
+    function calculateEAR(landmarks, leftIndices, rightIndices) {
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+      const left = leftIndices.map(i => landmarks[i]);
+      const right = rightIndices.map(i => landmarks[i]);
+
+      const ear = (eye) => {
+        const A = dist(eye[1], eye[5]);
+        const B = dist(eye[2], eye[4]);
+        const C = dist(eye[0], eye[3]);
+        return (A + B) / (2.0 * C);
+      }
+
+      return (ear(left) + ear(right)) / 2.0;
+    }
+
+    const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults((results) => {
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+      const landmarks = results.multiFaceLandmarks[0];
+
+      const leftEye = [33, 160, 158, 133, 153, 144];
+      const rightEye = [362, 385, 387, 263, 373, 380];
+      const ear = calculateEAR(landmarks, leftEye, rightEye);
+
+      // console.log("EAR:", ear);
+      if (ear < 0.21 && !blinkDetected) {
+        blinkDetected = true;
+        statusDiv.textContent = "✔️ ตรวจพบการกระพริบตา กำลังเข้าสู่ระบบ...";
+        takeSnapshotAndLogin();
+      }
+    });
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await faceMesh.send({ image: videoElement });
+      },
+      width: 400,
+      height: 300
+    });
+    camera.start();
+
+    function takeSnapshotAndLogin() {
+      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      const imageBase64 = canvasElement.toDataURL('image/jpeg');
+
+      fetch('/face-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // body: JSON.stringify({ userId: 'Thanwa', image: imageBase64 }) // แก้เป็น userId จริง
+        body: JSON.stringify({ image: imageBase64 })
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          statusDiv.textContent = '✅ เข้าสู่ระบบสำเร็จ! กำลังนำไปยัง dashboard...';
+        setTimeout(() => {
+            window.location.href = `/dashboard.html?user=${encodeURIComponent(result.user)}`;
+        }, 1500); // รอ 1.5 วินาที แล้วค่อยเปลี่ยนหน้า
+        } else {
+          statusDiv.textContent = '❌ ' + result.message;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

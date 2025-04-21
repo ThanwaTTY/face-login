@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ลงทะเบียนใบหน้า</title>
+  <style>
+    video {
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 30px;
+    }
+    input, button {
+      margin-top: 15px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #status {
+      margin-top: 10px;
+      font-size: 1.2em;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h2>ลงทะเบียนใบหน้าด้วยกล้อง</h2>
+  <input type="text" id="userId" placeholder="ชื่อผู้ใช้">
+  <br>
+  <video id="video" width="400" height="300" autoplay></video>
+  <br>
+  <button id="register">📸 ลงทะเบียน</button>
+  <div id="status"></div>
+
+  <script>
+    const video = document.getElementById('video');
+    const userIdInput = document.getElementById('userId');
+    const statusDiv = document.getElementById('status');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        alert('ไม่สามารถเข้าถึงกล้องได้: ' + err);
+      });
+
+    document.getElementById('register').onclick = async () => {
+      const userId = userIdInput.value.trim();
+      if (!userId) {
+        alert('กรุณากรอกชื่อผู้ใช้');
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imageBase64 = canvas.toDataURL('image/jpeg');
+
+      const res = await fetch('/register-face', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, image: imageBase64 })
+      });
+
+      const result = await res.json();
+      statusDiv.textContent = result.message;
+    }
+  </script>
+</body>
+</html>
